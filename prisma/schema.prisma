@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -12,41 +7,32 @@ datasource db {
   provider = "postgresql"
 }
 
-enum Role {
-  USER
-  ADMIN
-  PRO
-}
-
 model User {
-  id        String   @id @default(dbgenerated("concat('usr_', replace(cast(gen_random_uuid() as text), '-', ''))")) @db.Text
-  email     String   @unique
-  password  String?
-  name      String?
-  avatar    String?
-  aiCredits Int      @default(10)
-  role      Role     @default(USER)
+  id            String         @id @default(dbgenerated("concat('usr_', replace((gen_random_uuid())::text, '-'::text, ''::text))"))
+  email         String         @unique
+  password      String?
+  name          String?
+  avatar        String?
+  isOnboarded   Boolean        @default(false)
+  aiCredits     Int            @default(10)
+  role          Role           @default(USER)
   createdAt     DateTime       @default(now())
-
-  presentations Presentation[]
+  profession    String
   folders       Folder[]
+  presentations Presentation[]
 }
 
 model Folder {
-  id        String   @id @default(dbgenerated("concat('fld_', replace(cast(gen_random_uuid() as text), '-', ''))")) @db.Text
-  name      String
-  isPinned  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  userId String @db.Text
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Self-relation for nested folders (Windows-like tree)
-  parentId String?
-  parent   Folder?  @relation("FolderToFolder", fields: [parentId], references: [id], onDelete: Cascade)
-  children Folder[] @relation("FolderToFolder")
-
+  id            String         @id @default(dbgenerated("concat('fld_', replace((gen_random_uuid())::text, '-'::text, ''::text))"))
+  name          String
+  isPinned      Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  userId        String
+  parentId      String?
+  parent        Folder?        @relation("FolderToFolder", fields: [parentId], references: [id], onDelete: Cascade)
+  children      Folder[]       @relation("FolderToFolder")
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   presentations Presentation[]
 
   @@index([userId])
@@ -55,19 +41,40 @@ model Folder {
 }
 
 model Presentation {
-  id        String   @id @default(dbgenerated("concat('prs_', replace(cast(gen_random_uuid() as text), '-', ''))")) @db.Text
+  id        String   @id @default(dbgenerated("concat('prs_', replace((gen_random_uuid())::text, '-'::text, ''::text))"))
   title     String
   content   Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  userId String @db.Text
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // optional folder - null means it's at the root level
-  folderId String?
-  folder   Folder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  userId    String
+  folderId  String?
+  folder    Folder?  @relation(fields: [folderId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([folderId])
+}
+
+model EmailOTP {
+  id             String     @id @default(cuid())
+  email          String
+  otp            String
+  hashedPassword String?
+  expiresAt      DateTime
+  createdAt      DateTime   @default(now())
+  purpose        OTPPurpose @default(SIGNUP)
+
+  @@index([email])
+  @@index([email, purpose])
+}
+
+enum Role {
+  USER
+  ADMIN
+  PRO
+}
+
+enum OTPPurpose {
+  SIGNUP
+  PASSWORD_RESET
 }

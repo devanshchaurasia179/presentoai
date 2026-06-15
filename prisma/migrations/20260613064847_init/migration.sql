@@ -1,9 +1,20 @@
--- AlterTable
-ALTER TABLE "Presentation" ADD COLUMN     "folderId" TEXT,
-ALTER COLUMN "id" SET DEFAULT concat('prs_', replace(cast(gen_random_uuid() as text), '-', ''));
+-- CreateEnum
+CREATE TYPE "Role" AS ENUM ('USER', 'ADMIN', 'PRO');
 
--- AlterTable
-ALTER TABLE "User" ALTER COLUMN "id" SET DEFAULT concat('usr_', replace(cast(gen_random_uuid() as text), '-', ''));
+-- CreateTable
+CREATE TABLE "User" (
+    "id" TEXT NOT NULL DEFAULT concat('usr_', replace(cast(gen_random_uuid() as text), '-', '')),
+    "email" TEXT NOT NULL,
+    "password" TEXT,
+    "name" TEXT,
+    "avatar" TEXT,
+    "aiCredits" INTEGER NOT NULL DEFAULT 10,
+    "role" "Role" NOT NULL DEFAULT 'USER',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "profession" TEXT NOT NULL,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateTable
 CREATE TABLE "Folder" (
@@ -17,6 +28,22 @@ CREATE TABLE "Folder" (
 
     CONSTRAINT "Folder_pkey" PRIMARY KEY ("id")
 );
+
+-- CreateTable
+CREATE TABLE "Presentation" (
+    "id" TEXT NOT NULL DEFAULT concat('prs_', replace(cast(gen_random_uuid() as text), '-', '')),
+    "title" TEXT NOT NULL,
+    "content" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "userId" TEXT NOT NULL,
+    "folderId" TEXT,
+
+    CONSTRAINT "Presentation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
 CREATE INDEX "Folder_userId_idx" ON "Folder"("userId");
@@ -38,6 +65,9 @@ ALTER TABLE "Folder" ADD CONSTRAINT "Folder_userId_fkey" FOREIGN KEY ("userId") 
 
 -- AddForeignKey
 ALTER TABLE "Folder" ADD CONSTRAINT "Folder_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Folder"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Presentation" ADD CONSTRAINT "Presentation_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Presentation" ADD CONSTRAINT "Presentation_folderId_fkey" FOREIGN KEY ("folderId") REFERENCES "Folder"("id") ON DELETE SET NULL ON UPDATE CASCADE;

@@ -1,10 +1,46 @@
 import NextAuth from "next-auth"
 import Google from "next-auth/providers/google"
+import Credentials from "next-auth/providers/credentials"
+import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  providers: [Google],
+  providers: [
+    Google,
+    Credentials({
+      name: "Email",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) return null
+
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email as string },
+        })
+
+        if (!user || !user.password) return null
+
+        const valid = await bcrypt.compare(
+          credentials.password as string,
+          user.password
+        )
+        if (!valid) return null
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          image: user.avatar,
+        }
+      },
+    }),
+  ],
   session: { strategy: "jwt" },
+  pages: {
+    signIn: "/signin",
+  },
   callbacks: {
     async signIn({ user, account }) {
       if (account?.provider === "google" && user.email) {
@@ -19,6 +55,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             email: user.email,
             name: user.name ?? null,
             avatar: user.image ?? null,
+            profession: "",
           },
         })
       }
@@ -37,6 +74,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           token.picture = dbUser.avatar
           token.aiCredits = dbUser.aiCredits
           token.role = dbUser.role
+          token.isOnboarded = dbUser.isOnboarded
           token.createdAt = dbUser.createdAt.toISOString()
         }
       }
@@ -52,6 +90,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       session.user.aiCredits = token.aiCredits
       // @ts-expect-error – custom fields
       session.user.role = token.role
+      // @ts-expect-error – custom fields
+      session.user.isOnboarded = token.isOnboarded
       // @ts-expect-error – custom fields
       session.user.createdAt = token.createdAt
       return session
